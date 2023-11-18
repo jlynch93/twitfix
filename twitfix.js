@@ -1,5 +1,8 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 
+// Dynamically import node-fetch
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
 client.once('ready', () => {
@@ -10,24 +13,24 @@ client.on('messageCreate', async message => {
     // Ignore messages from bots
     if (message.author.bot) return;
 
-    // Regular expression to match 'https://x.com/*.../status/*' and 'https://twitter.com/*.../status/*'
-    const regex = /(https:\/\/x\.com\/([\w\d\-\/]*\/status\/[\w\d\-\/\?\=\&\#\.]*))|(https:\/\/twitter\.com\/([\w\d\-\/]*\/status\/[\w\d\-\/\?\=\&\#\.]*))/g;
+    // Regular expression for URLs
+    const regex = /(https:\/\/x\.com\/[\w\d\-]+\/status\/[\w\d\-]+)|(https:\/\/twitter\.com\/[\w\d\-]+\/status\/[\w\d\-]+)/g;
 
-    // Find the first matching URL in the message
     const match = regex.exec(message.content);
     if (match) {
-        let updatedUrl;
-        if (match[2]) { // matches 'https://x.com/*.../status/'
-            updatedUrl = `https://fixupx.com/${match[2]}`;
-        } else if (match[4]) { // matches 'https://twitter.com/*.../status/'
-            updatedUrl = `https://fxtwitter.com/${match[4]}`;
-        }
+        const originalUrl = match[0];
+        const updatedUrl = originalUrl.replace('x.com', 'fixupx.com').replace('twitter.com', 'fxtwitter.com');
 
-        // Send the updated URL as a message
-        if (updatedUrl) {
-            await message.channel.send(updatedUrl);
+        try {
+            const response = await fetch(updatedUrl);
+            if (response.ok && response.headers.get('content-length') > 0) { // Check for status and content length
+                await message.channel.send(updatedUrl);
+            } else {
+                console.log(`URL returned non-OK status or no content: ${response.status}`);
+            }
+        } catch (error) {
+            console.error(`Error fetching URL: ${error}`);
         }
     }
 });
-
 client.login('TOKEN');
